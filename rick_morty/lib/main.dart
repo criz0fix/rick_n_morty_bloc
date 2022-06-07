@@ -1,6 +1,14 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
-import 'package:rick_morty/character_provider.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rick_morty/bloc/character_bloc.dart';
+
+import 'pages/characters_page_view.dart';
+
+// import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
+
+//import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 
 void main() {
   runApp(const App());
@@ -11,71 +19,73 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-        create: (_) => CharacterProvider(
-            state: ProviderStates.initialized, characterList: []),
-        child: MaterialApp(
-          theme: ThemeData.dark(),
-          debugShowCheckedModeBanner: false,
-          home: Scaffold(
+    return MaterialApp(
+      theme: ThemeData.dark(),
+      debugShowCheckedModeBanner: false,
+      home: BlocProvider(
+        create: (_) => CharacterBloc(),
+        child: Builder(builder: (context) {
+          //final myBloc = context.read<CharacterBloc>();
+          return Scaffold(
             appBar: AppBar(
               title: const Text('Rick\'N Morty'),
               centerTitle: true,
             ),
-            body: Consumer<CharacterProvider>(
-              builder: (context, provider, child) {
-                if (provider.state == ProviderStates.initialized) {
+            body: BlocBuilder<CharacterBloc, CharacterState>(
+              builder: (context, state) {
+                if (state.status == CharacterStates.initial) {
                   return Center(
-                    child: ElevatedButton(
-                        onPressed: () => provider.getList(),
-                        child: const Text("Load page")),
+                    child: OutlinedButton(
+                      child: const Text(
+                        'Load Characters',
+                        style: TextStyle(
+                          color: Colors.white,
+                        ),
+                      ),
+                      onPressed: () => context
+                          .read<CharacterBloc>()
+                          .add(CharacterLoadEvent()),
+                      style: ButtonStyle(
+                          backgroundColor:
+                              MaterialStateProperty.all<Color>(Colors.green),
+                          overlayColor: MaterialStateProperty.all<Color>(
+                              Colors.purple.shade400)),
+                    ),
                   );
-                } else if (provider.state == ProviderStates.loading) {
-                  return const Center(child: CircularProgressIndicator());
-                } else if (provider.state == ProviderStates.loaded) {
-                  return ListView.builder(
-                      itemCount: provider.characterList.length,
-                      itemBuilder: ((context, index) {
-                        return Card(
-                          child: ListTile(
-                            title: Text(provider.characterList[index].name),
-                            subtitle:
-                                Text(provider.characterList[index].species),
-                            leading: Image.network(
-                                provider.characterList[index].image),
-                          ),
-                        );
-                      }));
+                } else if (state.status == CharacterStates.loading) {
+                  log('loading');
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                } else if (state.status == CharacterStates.loaded) {
+                  log('loaded');
+                  return const CharactersPage();
                 } else {
                   return Center(
-                    child: Text(provider.errorMessage),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(state.errorMessage),
+                        OutlinedButton(
+                          onPressed: () => context
+                              .read<CharacterBloc>()
+                              .add(CharacterLoadEvent()),
+                          child: const Text(
+                            'Try Again',
+                            style: TextStyle(
+                              color: Colors.white,
+                            ),
+                          ),
+                        )
+                      ],
+                    ),
                   );
                 }
               },
             ),
-          ),
-        ));
-  }
-}
-
-class HomePage extends StatelessWidget {
-  const HomePage({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Center(
-          child: ElevatedButton(
-            onPressed: () {
-              CharacterProvider(
-                  state: ProviderStates.initialized, characterList: []);
-            },
-            child: const Text('Load Api'),
-          ),
-        ),
-      ],
+          );
+        }),
+      ),
     );
   }
 }
